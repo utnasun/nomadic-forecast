@@ -1,0 +1,488 @@
+# Прогнозы на 1 месяц с июля 2023 г. (обучение от 6 месяцев) — только для истории шоков (src.shocks_v2 --early).
+# Собран из configs/forecast.yaml: протокол min_train 6, горизонт 1, модели правила final.
+# Запуск: .venv/bin/python -m src.run_forecast --config configs/early.yaml
+seed: 42
+data:
+  consumption: consumption.parquet
+  market_access: market_access.parquet
+  external:
+    static: data/external/territory_static.parquet
+    quarterly: data/external/rosstat_quarterly.parquet
+    connection: connection.parquet
+    n_neighbors: 5
+    rosstat_lag_months: 6
+    news: data/news/city_month.parquet
+    region_monthly: data/external/region_monthly.parquet
+    macro_lag_months:
+      cpi: 1
+      wage: 3
+  seasonal:
+    national: data/external/national_monthly.parquet
+    years:
+    - 2019
+    - 2022
+    profiles:
+      Все категории: Всего
+      Продовольствие: Продовольственные товары
+      Здоровье: Непродовольственные товары
+      Общественное питание: Непродовольственные товары
+      Транспорт: Услуги
+      Маркетплейсы: null
+  only_complete: true
+  categories:
+  - Все категории
+  - Продовольствие
+  - Здоровье
+  - Маркетплейсы
+  - Общественное питание
+  - Транспорт
+protocol:
+  min_train: 6
+  horizons:
+  - 1
+metrics:
+- MAE
+- RMSE
+- WAPE
+- MAPE
+- sMAPE
+- ME
+- R2
+- R2_growth
+models:
+  naive:
+    enabled: false
+  mean_3:
+    enabled: false
+    window: 3
+  mean_6:
+    enabled: false
+    window: 6
+  mean_12:
+    enabled: false
+    window: 12
+  drift:
+    enabled: false
+  seasonal_naive:
+    enabled: false
+  seasonal_naive_growth:
+    enabled: false
+    growth_window: 3
+  auto_ets:
+    enabled: false
+  auto_theta:
+    enabled: false
+  auto_arima:
+    enabled: false
+  prophet_default:
+    enabled: false
+    params: {}
+  prophet_yearly:
+    enabled: false
+    params:
+      yearly_seasonality: 3
+      seasonality_prior_scale: 1.0
+  catboost_logdiff:
+    enabled: false
+    kind: catboost
+    target: log_diff
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: RMSE
+  catboost_diff:
+    enabled: true
+    kind: catboost
+    target: diff
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: RMSE
+  ridge_logdiff:
+    enabled: false
+    kind: ridge
+    target: log_diff
+    params:
+      alpha: 1.0
+  ridge_diff:
+    enabled: false
+    kind: ridge
+    target: diff
+    params:
+      alpha: 1.0
+  catboost_diff_g1:
+    enabled: false
+    base: catboost_diff
+    features:
+    - geo
+  catboost_diff_g12:
+    enabled: false
+    base: catboost_diff
+    features:
+    - geo
+    - regional
+  catboost_diff_g123:
+    enabled: false
+    base: catboost_diff
+    features:
+    - geo
+    - regional
+    - population
+  catboost_diff_g1234:
+    enabled: false
+    base: catboost_diff
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  catboost_logdiff_g1:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+  catboost_logdiff_g12:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+    - regional
+  catboost_logdiff_g123:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+    - regional
+    - population
+  catboost_logdiff_g1234:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  catboost_diff_ds:
+    enabled: false
+    base: catboost_diff
+    deseason: true
+  catboost_diff_ds_g1:
+    enabled: false
+    base: catboost_diff_ds
+    features:
+    - geo
+  catboost_diff_ds_g12:
+    enabled: false
+    base: catboost_diff_ds
+    features:
+    - geo
+    - regional
+  catboost_diff_ds_g123:
+    enabled: false
+    base: catboost_diff_ds
+    features:
+    - geo
+    - regional
+    - population
+  catboost_diff_ds_g1234:
+    enabled: false
+    base: catboost_diff_ds
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  catboost_logdiff_ds:
+    enabled: false
+    base: catboost_logdiff
+    deseason: true
+  catboost_logdiff_ds_g1:
+    enabled: false
+    base: catboost_logdiff_ds
+    features:
+    - geo
+  catboost_logdiff_ds_g12:
+    enabled: false
+    base: catboost_logdiff_ds
+    features:
+    - geo
+    - regional
+  catboost_logdiff_ds_g123:
+    enabled: false
+    base: catboost_logdiff_ds
+    features:
+    - geo
+    - regional
+    - population
+  catboost_logdiff_ds_g1234:
+    enabled: false
+    base: catboost_logdiff_ds
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  catboost_diff_ds_m1:
+    enabled: false
+    base: catboost_diff_ds
+    min_t: 1
+  catboost_logdiff_ds_m1:
+    enabled: false
+    base: catboost_logdiff_ds
+    min_t: 1
+  catboost_diff_ds_g123_m1:
+    enabled: false
+    base: catboost_diff_ds_g123
+    min_t: 1
+  catboost_logdiff_ds_g123_m1:
+    enabled: false
+    base: catboost_logdiff_ds_g123
+    min_t: 1
+  catboost_diff_m1:
+    enabled: false
+    base: catboost_diff
+    min_t: 1
+  catboost_diff_g1_m1:
+    enabled: false
+    base: catboost_diff_g1
+    min_t: 1
+  catboost_diff_g123_m1:
+    enabled: false
+    base: catboost_diff_g123
+    min_t: 1
+  catboost_diff_g1234_m1:
+    enabled: false
+    base: catboost_diff_g1234
+    min_t: 1
+  catboost_diff_dsp:
+    enabled: false
+    base: catboost_diff_ds_m1
+    deseason: panel
+  catboost_logdiff_dsp:
+    enabled: false
+    base: catboost_logdiff_ds_m1
+    deseason: panel
+  catboost_diff_dsp_g123:
+    enabled: false
+    base: catboost_diff_ds_g123_m1
+    deseason: panel
+  catboost_logdiff_dsp_g123:
+    enabled: true
+    base: catboost_logdiff_ds_g123_m1
+    deseason: panel
+  catboost_logdiff_dsp_g123m:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    features:
+    - geo
+    - regional
+    - population
+    - macro
+  catboost_diff_dsp_g123m:
+    enabled: false
+    base: catboost_diff_dsp_g123
+    features:
+    - geo
+    - regional
+    - population
+    - macro
+  catboost_diff_ds_g123m_m1:
+    enabled: false
+    base: catboost_diff_ds_g123_m1
+    features:
+    - geo
+    - regional
+    - population
+    - macro
+  catboost_diff_mac:
+    enabled: false
+    base: catboost_diff
+    features:
+    - macro
+  catboost_diff_g1234m:
+    enabled: false
+    base: catboost_diff_g1234
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+    - macro
+  catboost_logdiff_dsp_g123_dir:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    strategy: direct
+  catboost_diff_dsp_g123_dir:
+    enabled: false
+    base: catboost_diff_dsp_g123
+    strategy: direct
+  catboost_diff_ds_g123_m1_dir:
+    enabled: false
+    base: catboost_diff_ds_g123_m1
+    strategy: direct
+  catboost_diff_dir:
+    enabled: false
+    base: catboost_diff
+    strategy: direct
+  catboost_diff_g1234_dir:
+    enabled: false
+    base: catboost_diff_g1234
+    strategy: direct
+  catboost_logdiff_dsp_g123_s1:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    seed: 1
+  catboost_logdiff_dsp_g123_s2:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    seed: 2
+  catboost_diff_s1:
+    enabled: false
+    base: catboost_diff
+    seed: 1
+  catboost_diff_s2:
+    enabled: false
+    base: catboost_diff
+    seed: 2
+  catboost_diff_g1234_s1:
+    enabled: false
+    base: catboost_diff_g1234
+    seed: 1
+  catboost_diff_g1234_s2:
+    enabled: false
+    base: catboost_diff_g1234
+    seed: 2
+  catboost_diff_lmae:
+    enabled: false
+    base: catboost_diff
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: MAE
+  catboost_diff_g1234_lmae:
+    enabled: false
+    base: catboost_diff_g1234
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: MAE
+  catboost_diff_dsp_g123_lmae:
+    enabled: false
+    base: catboost_diff_dsp_g123
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: MAE
+  catboost_logdiff_dsp_g123_w:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    weight: level
+  catboost_logdiff_dsp_g123_wm:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    weight: level
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: MAE
+  catboost_logdiff_dsp_g123_rel:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    features:
+    - geo
+    - regional
+    - population
+    - relative
+  catboost_diff_rel:
+    enabled: false
+    base: catboost_diff
+    features:
+    - relative
+  catboost_diff_g123_rel:
+    enabled: false
+    base: catboost_diff_g123
+    features:
+    - geo
+    - regional
+    - population
+    - relative
+  catboost_logdiff_dsp_g123_d4:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    params:
+      iterations: 500
+      depth: 4
+      learning_rate: 0.05
+      loss_function: RMSE
+  catboost_logdiff_dsp_g123_l2:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: RMSE
+      l2_leaf_reg: 10
+  catboost_logdiff_dsp_g123_lr:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    params:
+      iterations: 1000
+      depth: 6
+      learning_rate: 0.02
+      loss_function: RMSE
+  chronos2:
+    enabled: false
+    kind: chronos
+    model_id: amazon/chronos-2
+  chronos2_nat:
+    enabled: false
+    base: chronos2
+    covariate: national
+  chronos2_cl:
+    enabled: false
+    base: chronos2
+    cross_learning: true
+    batch_size: 100
+  chronos2_nat_cl:
+    enabled: false
+    base: chronos2_nat
+    cross_learning: true
+    batch_size: 100
+  catboost_diff_ds_g123n:
+    enabled: false
+    base: catboost_diff_ds_g123
+    features:
+    - geo
+    - regional
+    - population
+    - news
+  catboost_logdiff_ds_g123n:
+    enabled: false
+    base: catboost_logdiff_ds_g123
+    features:
+    - geo
+    - regional
+    - population
+    - news
+  # TabPFN-3 на короткой истории (см. configs/forecast.yaml): нужен .venv-tabfm
+  tabpfn_logdiff_dsp_g123:
+    enabled: false
+    base: catboost_logdiff_dsp_g123
+    kind: tabpfn
+    params: {model_path: ~/tabpfn_ckpt/tabpfn-v3-regressor-v3_20260506_timeseries.ckpt, n_estimators: 2,
+             max_context: 8000, device: mps, output_type: mean}
+  tabpfn_logdiff:
+    enabled: false
+    base: tabpfn_logdiff_dsp_g123
+    deseason: false
+    features: []
+    min_t: 2
+n_jobs: -1
+output_dir: results/early

@@ -1,0 +1,236 @@
+<title>Прогноз против факта по МО</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Unbounded:wght@500;600&display=swap">
+<style>
+:root {
+  --bg: #f5f7f5; --surface: #ffffff; --surface-2: #eef2ef; --band: #f1f4f2;
+  --ink: #15201c; --ink-2: #4f5b57; --ink-3: #7b8682; --line: #dde3df; --grid: #e8ece9;
+  --accent: #0e6b62; --accent-soft: #d8ebe7;
+  --fact: #15201c; --fc: #2a78d6; --fc-alt: #eb6834;
+  --good: #1f7a3a; --good-bg: #e2f2e6; --bad: #b3261e; --bad-bg: #fbe6e4; --mid: #6b5a00; --mid-bg: #f6efcf;
+  --display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --body: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111614; --surface: #181e1c; --surface-2: #1f2724; --band: #1c2321;
+    --ink: #e8eeeb; --ink-2: #aab5b1; --ink-3: #7f8a86; --line: #2b3431; --grid: #242c29;
+    --accent: #4fc2b4; --accent-soft: #19332f; --fact: #e8eeeb; --fc: #3987e5; --fc-alt: #d95926;
+    --good: #6fd08a; --good-bg: #173322; --bad: #f08a83; --bad-bg: #3a1c1a; --mid: #e3cc6b; --mid-bg: #33301a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111614; --surface: #181e1c; --surface-2: #1f2724; --band: #1c2321;
+  --ink: #e8eeeb; --ink-2: #aab5b1; --ink-3: #7f8a86; --line: #2b3431; --grid: #242c29;
+  --accent: #4fc2b4; --accent-soft: #19332f; --fact: #e8eeeb; --fc: #3987e5; --fc-alt: #d95926;
+  --good: #6fd08a; --good-bg: #173322; --bad: #f08a83; --bad-bg: #3a1c1a; --mid: #e3cc6b; --mid-bg: #33301a;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); margin: 0; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 28px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(24px, 3.6vw, 34px); line-height: 1.15; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+p { margin: 0; max-width: 72ch; }
+.eyebrow { font: 500 12px/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.muted { color: var(--ink-2); }
+.small { font-size: 13px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 12px; }
+code { font: 13px var(--mono); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
+.seg button { font: 500 14px var(--body); color: var(--ink-2); background: transparent; border: 0; border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.summary { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
+.summary .k { font: 500 12px var(--mono); color: var(--ink-3); letter-spacing: .04em; }
+.summary .v { font: 500 20px var(--mono); font-variant-numeric: tabular-nums; }
+.summary .small-v { font-size: 15px; color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); align-items: center; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
+.legend .sw-band { display: inline-block; width: 14px; height: 12px; background: var(--band); border: 1px solid var(--line); vertical-align: middle; margin-right: 6px; }
+
+.list { display: grid; gap: 14px; }
+.mo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 10px; display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; }
+.mo-info { display: grid; gap: 6px; align-content: start; }
+.mo-name { font-weight: 600; font-size: 16px; line-height: 1.3; }
+.mo-meta { font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+.pill { justify-self: start; font: 500 11px var(--mono); letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.pill.good { color: var(--good); background: var(--good-bg); }
+.pill.bad { color: var(--bad); background: var(--bad-bg); }
+.pill.typical { color: var(--mid); background: var(--mid-bg); }
+.pill.avg { color: var(--accent); background: var(--accent-soft); }
+.mo.avg { border-color: var(--accent); }
+.errs { display: grid; grid-template-columns: auto auto; gap: 2px 12px; font-size: 13px; justify-content: start; margin-top: 4px; }
+.errs span:nth-child(odd) { color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
+.charts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.chart { position: relative; }
+.chart-h { font: 500 12px var(--mono); color: var(--ink-2); display: flex; justify-content: space-between; gap: 6px; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart svg text { font: 10px var(--mono); fill: var(--ink-3); }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 12px/1.4 var(--body); color: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,.12); white-space: nowrap; z-index: 5; }
+.tip .num { font-size: 12px; }
+.note { font-size: 13px; color: var(--ink-2); display: grid; gap: 6px; }
+
+@media (max-width: 980px) {
+  .mo { grid-template-columns: 1fr; }
+  .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .errs { grid-template-columns: repeat(4, auto auto); }
+}
+@media (max-width: 520px) {
+  .charts { grid-template-columns: 1fr; }
+  .errs { grid-template-columns: auto auto; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">СберИндекс · безналичные расходы на жителя · модель <span id="model"></span></div>
+    <h1>Прогноз против факта: лучшие и худшие МО</h1>
+    <p class="muted">Чёрная линия — факт за 2023–2024 гг., синяя — прогноз, построенный в точке старта (кружок — последнее известное значение). Затенён 2024 г. — тест. На горизонте h прогноз делается каждые h месяцев на h месяцев вперёд: 12 прогнозов на месяц, 4 на квартал, 2 на полгода, один на год. МО упорядочены по средней ошибке (MAPE) за все четыре горизонта.</p>
+  </header>
+
+  <div class="controls">
+    <div class="seg" id="cats" role="group" aria-label="Категория"></div>
+    <div class="seg" id="groups" role="group" aria-label="Группа МО"></div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div class="summary" id="oracle"></div>
+  <div class="legend">
+    <span><i style="border-color: var(--fact)"></i>факт</span>
+    <span><i style="border-color: var(--fc)"></i>прогноз</span>
+    <span><span class="sw-band"></span>2024 г., тест</span>
+    <span>Наведите на график: месяц, факт, прогноз и ошибка</span>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="note">
+    <p>«Средний МО» — среднее по всем МО факта и прогноза: на нём видно, где модель промахивается сразу по всей стране (январь, февраль и апрель 2024 г.). Его MAPE — ошибка среднего, а не средняя ошибка МО.</p>
+    <p>Вторая строка сверху — разложение ошибки: на сколько упала бы MAE, если бы был заранее известен общий для всех МО сдвиг месяца (медиана ошибки по МО), а затем ещё и сдвиг своего региона. Остальное — ошибка самого МО; от месяца к месяцу она не сохраняется (корреляция ≈ 0).</p>
+    <p>MAPE — средняя абсолютная ошибка в процентах факта по всем прогнозам горизонта в 2024 г. Медиана — по всем 2016 МО с полными рядами. Шкала по вертикали общая для четырёх графиков одного МО и начинается не с нуля.</p>
+    <p>Модель <code>final</code>: для «Всех категорий» и Продовольствия — CatBoost с сезонным профилем по панели (<code>catboost_logdiff_dsp_g123</code>), для остальных категорий — <code>catboost_diff</code>.</p>
+  </div>
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+const CATS = Object.keys(DATA.cats);
+const GROUPS = [["good", "5 лучших"], ["typical", "5 типичных"], ["bad", "5 худших"]];
+const KIND = { good: "точный", typical: "типичный", bad: "большая ошибка", avg: "общий уровень" };
+const HS = ["1", "3", "6", "12"];
+const MONTHS = DATA.months;
+const fmt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
+const pct = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1).replace(".", ",") + "%";
+const mname = m => { const n = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"]; return n[+m.slice(5,7)-1] + " " + m.slice(0,4); };
+
+let state = { cat: CATS[0], group: "bad" };
+try { const s = JSON.parse(localStorage.getItem("fvf-state") || "null"); if (s && DATA.cats[s.cat]) state = s; } catch (e) {}
+document.getElementById("model").textContent = DATA.model;
+
+function buttons(el, items, key) {
+  el.innerHTML = "";
+  for (const [val, label] of items) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label; b.setAttribute("aria-pressed", state[key] === val);
+    b.addEventListener("click", () => { state[key] = val; try { localStorage.setItem("fvf-state", JSON.stringify(state)); } catch (e) {} render(); });
+    el.appendChild(b);
+  }
+}
+
+const W = 280, H = 150, M = { l: 44, r: 6, t: 8, b: 20 };
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+function niceTicks(lo, hi, n) {
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(s => s * mag).find(s => s >= step0);
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(v);
+  return out.length < 2 && n < 8 ? niceTicks(lo, hi, n * 2) : out;
+}
+const short = v => Math.abs(v) >= 1000 ? (v / 1000).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + "k" : fmt.format(v);
+
+function chart(mo, h, yr) {
+  const wrap = document.createElement("div"); wrap.className = "chart";
+  const segs = mo.fc[h];
+  const head = document.createElement("div"); head.className = "chart-h";
+  head.innerHTML = `<span>h = ${h} · ${segs.length} ${segs.length === 1 ? "прогноз" : segs.length < 5 ? "прогноза" : "прогнозов"}</span><span>MAPE ${mo.mape[h].toFixed(1).replace(".", ",")}%</span>`;
+  wrap.appendChild(head);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${mo.name}, горизонт ${h}: факт и прогноз` });
+  wrap.appendChild(svg);
+  const n = MONTHS.length;
+  const x = i => M.l + (i / (n - 1)) * (W - M.l - M.r);
+  const y = v => M.t + (1 - (v - yr[0]) / (yr[1] - yr[0])) * (H - M.t - M.b);
+  el("rect", { x: x(11.5), y: M.t, width: x(n - 1) - x(11.5) + M.r, height: H - M.t - M.b, fill: "var(--band)" }, svg);
+  for (const v of yr[2]) {
+    el("line", { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    const t = el("text", { x: M.l - 5, y: y(v) + 3, "text-anchor": "end" }, svg); t.textContent = short(v);
+  }
+  for (const [i, lab] of [[0, "2023"], [12, "2024"]]) {
+    const t = el("text", { x: x(i), y: H - 5, "text-anchor": "start" }, svg); t.textContent = lab;
+  }
+  const path = pts => pts.map((p, k) => (k ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join("");
+  const fact = mo.fact.map((v, i) => v == null ? null : [x(i), y(v)]).filter(Boolean);
+  el("path", { d: path(fact), fill: "none", stroke: "var(--fact)", "stroke-width": 1.6, "stroke-linejoin": "round" }, svg);
+  const pred = {};
+  segs.forEach(([o, vals]) => {
+    const pts = [[x(o - 1), y(mo.fact[o - 1])]].concat(vals.map((v, k) => [x(o + k), y(v)]));
+    el("path", { d: path(pts), fill: "none", stroke: "var(--fc)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    el("circle", { cx: pts[0][0], cy: pts[0][1], r: 2.6, fill: "var(--surface)", stroke: "var(--fc)", "stroke-width": 1.5 }, svg);
+    vals.forEach((v, k) => { pred[o + k] = { v, o, k: k + 1 }; });
+  });
+  const cross = el("line", { y1: M.t, y2: H - M.b, stroke: "var(--ink-3)", "stroke-width": 1, "stroke-dasharray": "2 2", visibility: "hidden" }, svg);
+  const dotF = el("circle", { r: 3.5, fill: "var(--fact)", stroke: "var(--surface)", "stroke-width": 1.5, visibility: "hidden" }, svg);
+  const dotP = el("circle", { r: 3.5, fill: "var(--fc)", stroke: "var(--surface)", "stroke-width": 1.5, visibility: "hidden" }, svg);
+  const hit = el("rect", { x: M.l, y: 0, width: W - M.l - M.r, height: H, fill: "transparent" }, svg);
+  const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; wrap.appendChild(tip);
+  function move(ev) {
+    const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(n - 1, Math.round((sx - M.l) / (W - M.l - M.r) * (n - 1))));
+    const f = mo.fact[i], p = pred[i];
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    if (f != null) { dotF.setAttribute("cx", x(i)); dotF.setAttribute("cy", y(f)); dotF.setAttribute("visibility", "visible"); } else dotF.setAttribute("visibility", "hidden");
+    if (p) { dotP.setAttribute("cx", x(i)); dotP.setAttribute("cy", y(p.v)); dotP.setAttribute("visibility", "visible"); } else dotP.setAttribute("visibility", "hidden");
+    let html = `<b>${mname(MONTHS[i])}</b><br>факт <span class="num">${f == null ? "—" : fmt.format(f) + " ₽"}</span>`;
+    if (p) html += `<br>прогноз <span class="num">${fmt.format(p.v)} ₽</span> (${pct((p.v / f - 1) * 100)})<br><span class="muted">старт после ${mname(MONTHS[p.o - 1])}, шаг ${p.k}</span>`;
+    tip.innerHTML = html; tip.hidden = false;
+    const wr = wrap.getBoundingClientRect(); let left = ev.clientX - wr.left + 12;
+    if (left + tip.offsetWidth > wr.width) left = ev.clientX - wr.left - tip.offsetWidth - 12;
+    tip.style.left = Math.max(0, left) + "px"; tip.style.top = (ev.clientY - wr.top + 12) + "px";
+  }
+  function leave() { tip.hidden = true; for (const e of [cross, dotF, dotP]) e.setAttribute("visibility", "hidden"); }
+  hit.addEventListener("pointermove", move); hit.addEventListener("pointerleave", leave);
+  return wrap;
+}
+
+function render() {
+  buttons(document.getElementById("cats"), CATS.map(c => [c, c]), "cat");
+  buttons(document.getElementById("groups"), GROUPS, "group");
+  const sm = DATA.summary[state.cat];
+  document.getElementById("summary").innerHTML = `<span class="k">МЕДИАНА MAPE ПО ${fmt.format(sm.n)} МО</span>` +
+    HS.map(h => `<span><span class="k">h=${h}</span> <span class="v">${sm.median_mape[h].toFixed(1).replace(".", ",")}%</span></span>`).join("");
+  document.getElementById("oracle").innerHTML = `<span class="k">ЕСЛИ БЫ ЗНАЛИ ОБЩИЙ СДВИГ МЕСЯЦА: СТРАНА / + РЕГИОН</span>` +
+    HS.map(h => `<span><span class="k">h=${h}</span> <span class="v small-v">${sm.oracle[h].map(v => "−" + Math.abs(v) + "%").join(" / ")}</span></span>`).join("");
+  const list = document.getElementById("list"); list.innerHTML = "";
+  for (const mo of DATA.cats[state.cat].filter(m => m.kind === state.group || m.kind === "avg")) {
+    const vals = mo.fact.filter(v => v != null);
+    for (const h of HS) for (const [, vs] of mo.fc[h]) vals.push(...vs);
+    let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.06 || hi * 0.05; lo -= pad; hi += pad;
+    const ticks = niceTicks(lo, hi, 3);
+    const card = document.createElement("article"); card.className = "mo" + (mo.kind === "avg" ? " avg" : "");
+    card.innerHTML = `<div class="mo-info"><span class="pill ${mo.kind}">${KIND[mo.kind]}</span>
+      <div class="mo-name">${mo.name}</div><div class="mo-meta">${mo.region}<br>${mo.type}</div></div>`;
+    const charts = document.createElement("div"); charts.className = "charts";
+    for (const h of HS) charts.appendChild(chart(mo, h, [lo, hi, ticks]));
+    card.appendChild(charts); list.appendChild(card);
+  }
+}
+render();
+</script>

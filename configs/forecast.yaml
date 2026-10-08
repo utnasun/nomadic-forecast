@@ -1,0 +1,306 @@
+# Конфигурация эксперимента: сравнение базовых моделей прогноза потребления в МО.
+# Запуск: .venv/bin/python -m src.run_forecast --config configs/forecast.yaml
+
+seed: 42
+
+data:
+  consumption: consumption.parquet
+  market_access: market_access.parquet
+  # Внешние данные (собираются .venv/bin/python -m src.external), нужны моделям с features
+  external:
+    static: data/external/territory_static.parquet
+    quarterly: data/external/rosstat_quarterly.parquet
+    connection: connection.parquet
+    n_neighbors: 5                  # ближайшие МО по автодороге для признаков nbr_*
+    rosstat_lag_months: 6           # квартал БДПМО считается опубликованным через 6 мес. после его конца
+    news: data/news/city_month.parquet   # всплески новостей по городу — центру МО (src.news_features)
+    region_monthly: data/external/region_monthly.parquet   # ИПЦ и зарплата по регионам (src.external)
+    macro_lag_months: {cpi: 1, wage: 3}
+    tourism: data/external/tourism.parquet   # ночёвки в КСР по МО (src.external --only tourism)
+    tourism_year: 2022                       # годовые данные БДПМО за 2022 г. опубликованы до конца 2023 г.  # ИПЦ за месяц выходит через ~2 недели, зарплата — через ~2 мес.
+  # Национальный сезонный профиль для моделей с deseason (ряд — src.external, профиль — src.data.national_season).
+  # Годы 2019–2022 — до начала панели, утечки нет ни в одном разбиении. Сопоставление категорий выбрано
+  # по 2023 г. (он всегда в обучении): профиль, после вычитания которого медианный прирост МО ровнее всего.
+  seasonal:
+    national: data/external/national_monthly.parquet
+    years: [2019, 2022]
+    profiles:
+      Все категории: Всего
+      Продовольствие: Продовольственные товары
+      Здоровье: Непродовольственные товары
+      Общественное питание: Непродовольственные товары   # свой национальный профиль подходит хуже
+      Транспорт: Услуги
+      Маркетплейсы: null                                  # ни один профиль не помогает — без поправки
+  # Пока берём только МО с полными рядами (24 месяца во всех категориях).
+  only_complete: true
+  categories:
+    - Все категории
+    - Продовольствие
+    - Здоровье
+    - Маркетплейсы
+    - Общественное питание
+    - Транспорт
+
+protocol:
+  # Минимальная длина обучения (месяцев). 12 = весь 2023 год.
+  min_train: 12
+  # Для горизонта h точки старта: min_train, min_train + h, ... пока хватает данных.
+  # Прогноз на h шагов строится рекурсивно; при любом h тестом оказывается весь 2024 год.
+  horizons: [1, 3, 6, 12]
+
+metrics: [MAE, RMSE, WAPE, MAPE, sMAPE, ME, R2, R2_growth]
+
+models:
+  # --- простые модели ---
+  naive: {enabled: true}
+  mean_3: {enabled: true, window: 3}
+  mean_6: {enabled: true, window: 6}
+  mean_12: {enabled: true, window: 12}
+  drift: {enabled: true}
+  seasonal_naive: {enabled: true}
+  # y[t-12] * (сумма последних m мес / сумма тех же мес год назад), m = min(3, T-12)
+  seasonal_naive_growth: {enabled: true, growth_window: 3}
+
+  # --- статистические модели (statsforecast), по ряду на МО, без сезонности ---
+  auto_ets: {enabled: true}
+  auto_theta: {enabled: true}
+  auto_arima: {enabled: true}
+
+  # --- Prophet, по ряду на МО ---
+  prophet_default:
+    enabled: true
+    params: {}                      # настройки по умолчанию (годовая сезонность авто-выключается при < 2 лет)
+  prophet_yearly:
+    enabled: true
+    params:
+      yearly_seasonality: 3         # принудительная годовая сезонность, порядок Фурье
+      seasonality_prior_scale: 1.0
+
+  # --- глобальные ML-модели (одна модель на все МО категории), рекурсивный прогноз ---
+  # Общие параметры (можно задать в каждой модели):
+  #   min_t: 2            — первый месяц-цель в обучении (нужен хотя бы 1 лаг прироста)
+  #   min_unique: 6       — ridge: исключать числовые признаки с < 6 уникальными значениями в обучении
+  #   clip_quantile: 0.005 — прогноз цели обрезается квантилями [q, 1-q] обучающей цели (защита рекурсии)
+  catboost_logdiff:
+    enabled: true
+    kind: catboost
+    target: log_diff                # log y_t - log y_{t-1}
+    params: {iterations: 500, depth: 6, learning_rate: 0.05, loss_function: RMSE}
+  catboost_diff:
+    enabled: true
+    kind: catboost
+    target: diff                    # y_t - y_{t-1} в рублях
+    params: {iterations: 500, depth: 6, learning_rate: 0.05, loss_function: RMSE}
+  ridge_logdiff:
+    enabled: true
+    kind: ridge
+    target: log_diff
+    params: {alpha: 1.0}
+  ridge_diff:
+    enabled: true
+    kind: ridge
+    target: diff
+    params: {alpha: 1.0}
+
+  # --- абляция внешних признаков (только CatBoost), base — наследовать параметры модели ---
+  # features: geo — справочник МО, regional — регион/соседи, population — население,
+  #           rosstat_q — квартальные показатели БДПМО, news — всплески новостей о ЧС и отключениях
+  #           по городу — центру МО (см. src/models/global_ml.py)
+  catboost_diff_g1:       {enabled: true, base: catboost_diff, features: [geo]}
+  catboost_diff_g12:      {enabled: true, base: catboost_diff, features: [geo, regional]}
+  catboost_diff_g123:     {enabled: true, base: catboost_diff, features: [geo, regional, population]}
+  catboost_diff_g1234:    {enabled: true, base: catboost_diff, features: [geo, regional, population, rosstat_q]}
+  catboost_logdiff_g1:    {enabled: true, base: catboost_logdiff, features: [geo]}
+  catboost_logdiff_g12:   {enabled: true, base: catboost_logdiff, features: [geo, regional]}
+  catboost_logdiff_g123:  {enabled: true, base: catboost_logdiff, features: [geo, regional, population]}
+  catboost_logdiff_g1234: {enabled: true, base: catboost_logdiff, features: [geo, regional, population, rosstat_q]}
+
+  # --- то же на рядах, очищенных от национальной сезонности (deseason) ---
+  catboost_diff_ds:          {enabled: true, base: catboost_diff, deseason: true}
+  catboost_diff_ds_g1:       {enabled: true, base: catboost_diff_ds, features: [geo]}
+  catboost_diff_ds_g12:      {enabled: true, base: catboost_diff_ds, features: [geo, regional]}
+  catboost_diff_ds_g123:     {enabled: true, base: catboost_diff_ds, features: [geo, regional, population]}
+  catboost_diff_ds_g1234:    {enabled: true, base: catboost_diff_ds, features: [geo, regional, population, rosstat_q]}
+  catboost_logdiff_ds:       {enabled: true, base: catboost_logdiff, deseason: true}
+  catboost_logdiff_ds_g1:    {enabled: true, base: catboost_logdiff_ds, features: [geo]}
+  catboost_logdiff_ds_g12:   {enabled: true, base: catboost_logdiff_ds, features: [geo, regional]}
+  catboost_logdiff_ds_g123:  {enabled: true, base: catboost_logdiff_ds, features: [geo, regional, population]}
+  catboost_logdiff_ds_g1234: {enabled: true, base: catboost_logdiff_ds,
+                              features: [geo, regional, population, rosstat_q]}
+
+  # --- ds с первой целью «февраль» (min_t: 1): в очищенном ряду остаётся устойчивый февральский скачок
+  #     (+6,5% в 2023, +10,5% в 2024 у «Все категории»), при min_t: 2 он никогда не попадает в обучение ---
+  catboost_diff_ds_m1:         {enabled: true, base: catboost_diff_ds, min_t: 1}
+  catboost_logdiff_ds_m1:      {enabled: true, base: catboost_logdiff_ds, min_t: 1}
+  catboost_diff_ds_g123_m1:    {enabled: true, base: catboost_diff_ds_g123, min_t: 1}
+  catboost_logdiff_ds_g123_m1: {enabled: true, base: catboost_logdiff_ds_g123, min_t: 1}
+  catboost_diff_m1:            {enabled: true, base: catboost_diff, min_t: 1}
+  catboost_diff_g1_m1:         {enabled: true, base: catboost_diff_g1, min_t: 1}
+  catboost_diff_g123_m1:       {enabled: true, base: catboost_diff_g123, min_t: 1}
+  catboost_diff_g1234_m1:      {enabled: true, base: catboost_diff_g1234, min_t: 1}
+
+  # --- сезонный профиль по самой панели обучения (deseason: panel, см. panel_season в src/models/global_ml.py) ---
+  catboost_diff_dsp:          {enabled: true, base: catboost_diff_ds_m1, deseason: panel}
+  catboost_logdiff_dsp:       {enabled: true, base: catboost_logdiff_ds_m1, deseason: panel}
+  catboost_diff_dsp_g123:     {enabled: true, base: catboost_diff_ds_g123_m1, deseason: panel}
+  catboost_logdiff_dsp_g123:  {enabled: true, base: catboost_logdiff_ds_g123_m1, deseason: panel}
+
+  # --- региональные ИПЦ и зарплата (features: macro) поверх лучших моделей категорий ---
+  catboost_logdiff_dsp_g123m: {enabled: true, base: catboost_logdiff_dsp_g123,
+                               features: [geo, regional, population, macro]}
+  catboost_diff_dsp_g123m:    {enabled: true, base: catboost_diff_dsp_g123, features: [geo, regional, population, macro]}
+  catboost_diff_ds_g123m_m1:  {enabled: true, base: catboost_diff_ds_g123_m1, features: [geo, regional, population, macro]}
+  catboost_diff_mac:          {enabled: true, base: catboost_diff, features: [macro]}
+  catboost_diff_g1234m:       {enabled: true, base: catboost_diff_g1234, features: [geo, regional, population, rosstat_q, macro]}
+
+  # --- прямой прогноз (strategy: direct): одна модель на все шаги, цель — средний месячный прирост за k мес. ---
+  catboost_logdiff_dsp_g123_dir: {enabled: true, base: catboost_logdiff_dsp_g123, strategy: direct}
+  catboost_diff_dsp_g123_dir:    {enabled: true, base: catboost_diff_dsp_g123, strategy: direct}
+  catboost_diff_ds_g123_m1_dir:  {enabled: true, base: catboost_diff_ds_g123_m1, strategy: direct}
+  catboost_diff_dir:             {enabled: true, base: catboost_diff, strategy: direct}
+  catboost_diff_g1234_dir:       {enabled: true, base: catboost_diff_g1234, strategy: direct}
+
+  # --- те же модели с другим seed: шум от случайности обучения (см. results/noise.md) ---
+  catboost_logdiff_dsp_g123_s1: {enabled: true, base: catboost_logdiff_dsp_g123, seed: 1}
+  catboost_logdiff_dsp_g123_s2: {enabled: true, base: catboost_logdiff_dsp_g123, seed: 2}
+  catboost_diff_s1:             {enabled: true, base: catboost_diff, seed: 1}
+  catboost_diff_s2:             {enabled: true, base: catboost_diff, seed: 2}
+  catboost_diff_g1234_s1:       {enabled: true, base: catboost_diff_g1234, seed: 1}
+  catboost_diff_g1234_s2:       {enabled: true, base: catboost_diff_g1234, seed: 2}
+
+  # --- функция потерь под метрику MAE в рублях: MAE для цели в рублях, вес «уровень МО» для цели в логарифмах ---
+  catboost_diff_lmae:            {enabled: true, base: catboost_diff,
+                                  params: {iterations: 500, depth: 6, learning_rate: 0.05, loss_function: MAE}}
+  catboost_diff_g1234_lmae:      {enabled: true, base: catboost_diff_g1234,
+                                  params: {iterations: 500, depth: 6, learning_rate: 0.05, loss_function: MAE}}
+  catboost_diff_dsp_g123_lmae:   {enabled: true, base: catboost_diff_dsp_g123,
+                                  params: {iterations: 500, depth: 6, learning_rate: 0.05, loss_function: MAE}}
+  catboost_logdiff_dsp_g123_w:   {enabled: true, base: catboost_logdiff_dsp_g123, weight: level}
+  catboost_logdiff_dsp_g123_wm:  {enabled: true, base: catboost_logdiff_dsp_g123, weight: level,
+                                  params: {iterations: 500, depth: 6, learning_rate: 0.05, loss_function: MAE}}
+
+  # --- МО относительно региона (features: relative) ---
+  catboost_logdiff_dsp_g123_rel: {enabled: true, base: catboost_logdiff_dsp_g123,
+                                  features: [geo, regional, population, relative]}
+  catboost_diff_rel:             {enabled: true, base: catboost_diff, features: [relative]}
+  catboost_diff_g123_rel:        {enabled: true, base: catboost_diff_g123, features: [geo, regional, population, relative]}
+
+  # --- регуляризация основной модели (выбор — по H1, src.halves) ---
+  catboost_logdiff_dsp_g123_d4:   {enabled: true, base: catboost_logdiff_dsp_g123,
+                                   params: {iterations: 500, depth: 4, learning_rate: 0.05, loss_function: RMSE}}
+  catboost_logdiff_dsp_g123_l2:   {enabled: true, base: catboost_logdiff_dsp_g123,
+                                   params: {iterations: 500, depth: 6, learning_rate: 0.05, loss_function: RMSE,
+                                            l2_leaf_reg: 10}}
+  catboost_logdiff_dsp_g123_lr:   {enabled: true, base: catboost_logdiff_dsp_g123,
+                                   params: {iterations: 1000, depth: 6, learning_rate: 0.02, loss_function: RMSE}}
+
+  # --- устойчивость обучения к шокам и артефактам (winsor — обрезка цели по месяцу, despike — одиночные выбросы) ---
+  catboost_diff_rw1:              {enabled: true, base: catboost_diff, winsor: 0.01}
+  catboost_diff_rw5:              {enabled: true, base: catboost_diff, winsor: 0.05}
+  catboost_diff_sp:               {enabled: true, base: catboost_diff, despike: 5}
+  catboost_logdiff_dsp_g123_rw1:  {enabled: true, base: catboost_logdiff_dsp_g123, winsor: 0.01}
+  catboost_logdiff_dsp_g123_sp:   {enabled: true, base: catboost_logdiff_dsp_g123, despike: 5}
+
+  # --- TabPFN-3 (табличная foundation-модель, чекпойнт для рядов) вместо CatBoost на тех же признаках ---
+  # Нужен .venv-tabfm (Python ≥ 3.11, pip install tabpfn); веса — Prior-Labs/tabpfn_3 на HuggingFace, лицензия
+  # tabpfn-3-license-v1.0: исследование и оценка, без коммерческого использования. Контекст — 8000 случайных строк
+  # обучения, 2 оценщика, прогноз — среднее распределения (медиана занижает рост); прогон всего протокола на M2 (MPS) ≈ 1 ч на модель.
+  tabpfn_logdiff_dsp_g123: {enabled: false, base: catboost_logdiff_dsp_g123, kind: tabpfn,
+                            params: {model_path: ~/tabpfn_ckpt/tabpfn-v3-regressor-v3_20260506_timeseries.ckpt,
+                                     n_estimators: 2, max_context: 8000, device: mps, output_type: mean}}
+  tabpfn_logdiff:          {enabled: false, base: tabpfn_logdiff_dsp_g123, deseason: false, features: [], min_t: 2}
+
+  # TabFM (Google Research, 2026): веса google/tabfm-1.0.0-pytorch (regression/model.safetensors + config.json) в
+  # ~/tabfm_ckpt/regression/, лицензия некоммерческая; max_num_rows — подвыборка строк на члена ансамбля
+  tabfm_logdiff_dsp_g123: {enabled: false, base: catboost_logdiff_dsp_g123, kind: tabfm,
+                           params: {checkpoint_path: ~/tabfm_ckpt, device: mps, n_estimators: 2, max_num_rows: 4000,
+                                    predict_chunk: 500}}
+  tabfm_logdiff:          {enabled: false, base: tabfm_logdiff_dsp_g123, deseason: false, features: [], min_t: 2}
+
+  # --- Chronos-2: предобученная модель без обучения на наших данных (src/models/chronos_model.py) ---
+  # Проверено: хуже лучшей модели во всех 24 ячейках «категория × горизонт» (на 4–136% по MAE),
+  # на h=12 хуже naive в 4 категориях из 6. Выключены: полный прогон четырёх вариантов на CPU ≈ 35 мин.
+  chronos2:        {enabled: false, kind: chronos, model_id: amazon/chronos-2}
+  chronos2_nat:    {enabled: false, base: chronos2, covariate: national}   # + национальный ряд с 2018-12
+  chronos2_cl:     {enabled: false, base: chronos2, cross_learning: true, batch_size: 100}
+  chronos2_nat_cl: {enabled: false, base: chronos2_nat, cross_learning: true, batch_size: 100}
+
+  # --- новостные признаки поверх лучших вариантов (оценка на событиях: src.news_eval) ---
+  catboost_diff_ds_g123n:    {enabled: true, base: catboost_diff_ds_g123, features: [geo, regional, population, news]}
+  catboost_logdiff_ds_g123n: {enabled: true, base: catboost_logdiff_ds_g123,
+                              features: [geo, regional, population, news]}
+
+  # --- календарь: прогноз расходов на день (per_day: a — делим на число дней^a), 29 февраля 2024 г. ---
+  # catboost_diff_pd хуже на +80…+170% в феврале: при min_t: 2 переход «январь → февраль» (+16% на день) не в обучении
+  catboost_diff_pd:              {enabled: false, base: catboost_diff, per_day: 1.0}
+  catboost_logdiff_dsp_g123_pd:  {enabled: false, base: catboost_logdiff_dsp_g123, per_day: 1.0}
+  # итог: февраль исправляется (−3,7% → −0,1%), март портится на столько же — недопрогноз февраля 2024 г. — ускорение роста
+  # в начале года, а не 29-й день
+
+  # --- профиль по панели, сжатый к национальному: приросты профиля w · панель + (1 − w) · национальный ---
+  catboost_logdiff_dsp_g123_sb05: {enabled: false, base: catboost_logdiff_dsp_g123, season_blend: 0.5}
+  catboost_diff_dsp_sb05:         {enabled: false, base: catboost_diff_dsp, season_blend: 0.5}
+  # итог: хуже на 5…42% (Все категории, Продовольствие, Здоровье) — особенности панели настоящие, не шум
+
+  # --- вес обучающих строк по свежести: recency^(T − 1 − t) ---
+  catboost_logdiff_dsp_g123_rc09: {enabled: false, base: catboost_logdiff_dsp_g123, recency: 0.9}
+  catboost_diff_rc09:             {enabled: false, base: catboost_diff, recency: 0.9}
+  # итог: в среднем по категориям у модели с профилем −0…+2%, у catboost_diff +2…+7%
+
+  # --- месяцы, которых нет в обучении (январь при T=12): сезонный прирост 0 вместо национального ---
+  # Считались для Здоровья, Общепита, Транспорта (у Маркетплейсов национального профиля нет — и так 0).
+  # Итог: к модели с профилем Здоровье −7…−42%, Общепит −18…−62%, Транспорт +11…+21% (меняется только старт T=12);
+  # к catboost_diff — Общепит h=1 −6% (8/12), Здоровье h≥3 +12…+30%. Выбор для 2025 г. — src.forecast_2025 --seen-only
+  catboost_logdiff_dsp_g123_nz: {enabled: false, base: catboost_logdiff_dsp_g123, season_unseen: zero}
+  catboost_diff_dsp_g123_nz:    {enabled: false, base: catboost_diff_dsp_g123, season_unseen: zero}
+
+  # --- перенос уровня истории после устойчивого сдвига (rebase, level_shifts в src/models/global_ml.py) ---
+  # У Здоровья, Общепита, Транспорта ступенька вверх есть у 12–27% МО и сохраняется в 2024 г.; модель принимала её
+  # за продолжающийся рост. История до ступеньки умножается на её величину, последний отрезок не меняется.
+  catboost_diff_rb:              {enabled: false, base: catboost_diff, rebase: true}
+  catboost_diff_rb_s1:           {enabled: false, base: catboost_diff_rb, seed: 1}
+  catboost_diff_rb_s2:           {enabled: false, base: catboost_diff_rb, seed: 2}
+  catboost_logdiff_dsp_g123_rb:  {enabled: false, base: catboost_logdiff_dsp_g123, rebase: true}
+
+  # --- другие категории того же МО и тип сезонности МО (structure, scluster, cross) ---
+  catboost_diff_st:              {enabled: false, base: catboost_diff, features: [structure, scluster]}
+  catboost_diff_stx:             {enabled: false, base: catboost_diff, features: [structure, scluster, cross]}
+  catboost_logdiff_dsp_g123_st:  {enabled: false, base: catboost_logdiff_dsp_g123,
+                                  features: [geo, regional, population, structure, scluster]}
+  catboost_logdiff_dsp_g123_stx: {enabled: false, base: catboost_logdiff_dsp_g123,
+                                  features: [geo, regional, population, structure, scluster, cross]}
+
+  # сдвиг уровня как признак (shift) вместо переноса истории
+  catboost_diff_sh:              {enabled: false, base: catboost_diff, features: [shift]}
+  catboost_diff_sh_s1:           {enabled: false, base: catboost_diff_sh, seed: 1}
+  catboost_diff_sh_s2:           {enabled: false, base: catboost_diff_sh, seed: 2}
+
+  # сезонный профиль по панели как признак модели без сезонной поправки (pseason); _psz — для невиданных месяцев 0
+  catboost_diff_ps:              {enabled: false, base: catboost_diff_m1, features: [pseason]}
+  catboost_diff_psz:             {enabled: false, base: catboost_diff_ps, season_unseen: zero}
+
+  # туристичность МО: ночёвки в гостиницах на жителя (БДПМО, 2022 г.)
+  catboost_diff_tr:              {enabled: false, base: catboost_diff, features: [tourism]}
+  catboost_diff_tr_s1:           {enabled: false, base: catboost_diff_tr, seed: 1}
+  catboost_diff_tr_s2:           {enabled: false, base: catboost_diff_tr, seed: 2}
+
+  catboost_diff_ps2:             {enabled: false, base: catboost_diff_ps, min_t: 2}
+  catboost_diff_psz2:            {enabled: false, base: catboost_diff_psz, min_t: 2}
+
+  # строки со скачком цели больше чем в 2 раза за месяц не участвуют в обучении (артефакты общепита на нулевой базе)
+  catboost_diff_dj:              {enabled: false, base: catboost_diff, drop_jumps: 2}
+  catboost_diff_dj_s1:           {enabled: false, base: catboost_diff_dj, seed: 1}
+  catboost_diff_dj_s2:           {enabled: false, base: catboost_diff_dj, seed: 2}
+
+  # собственный тренд МО (trend) и МО как категориальный признак (moid)
+  catboost_diff_tn:              {enabled: false, base: catboost_diff, features: [trend]}
+  catboost_diff_id:              {enabled: false, base: catboost_diff, features: [moid]}
+  catboost_logdiff_dsp_g123_tn:  {enabled: false, base: catboost_logdiff_dsp_g123, features: [geo, regional, population, trend]}
+
+  catboost_diff_id_s1:           {enabled: false, base: catboost_diff_id, seed: 1}
+  catboost_diff_id_s2:           {enabled: false, base: catboost_diff_id, seed: 2}
+
+  catboost_logdiff_dsp_g123_id:  {enabled: false, base: catboost_logdiff_dsp_g123, features: [geo, regional, population, moid]}
+
+n_jobs: -1
+output_dir: results

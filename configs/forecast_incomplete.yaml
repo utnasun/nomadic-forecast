@@ -1,0 +1,286 @@
+# Эксперимент: все МО, включая неполные ряды (174 МО), и признак Рамадана (группа calendar, вариант *r).
+# Сгенерирован из configs/forecast.yaml: те же данные и протокол, only_complete: false, свой output_dir.
+# Запуск:
+#   .venv/bin/python -m src.run_forecast --config configs/forecast_incomplete.yaml
+#   .venv/bin/python -m src.evaluate --config configs/forecast_incomplete.yaml
+#   .venv/bin/python -m src.incomplete_eval
+seed: 42
+data:
+  consumption: consumption.parquet
+  market_access: market_access.parquet
+  external:
+    static: data/external/territory_static.parquet
+    quarterly: data/external/rosstat_quarterly.parquet
+    connection: connection.parquet
+    n_neighbors: 5
+    rosstat_lag_months: 6
+    news: data/news/city_month.parquet
+  seasonal:
+    national: data/external/national_monthly.parquet
+    years:
+    - 2019
+    - 2022
+    profiles:
+      Все категории: Всего
+      Продовольствие: Продовольственные товары
+      Здоровье: Непродовольственные товары
+      Общественное питание: Непродовольственные товары
+      Транспорт: Услуги
+      Маркетплейсы: null
+  only_complete: false
+  categories:
+  - Все категории
+  - Продовольствие
+  - Здоровье
+  - Маркетплейсы
+  - Общественное питание
+  - Транспорт
+protocol:
+  min_train: 12
+  horizons:
+  - 1
+  - 3
+  - 6
+  - 12
+metrics:
+- MAE
+- RMSE
+- WAPE
+- MAPE
+- sMAPE
+- ME
+- R2
+- R2_growth
+models:
+  naive:
+    enabled: true
+  mean_3:
+    enabled: true
+    window: 3
+  mean_6:
+    enabled: false
+    window: 6
+  mean_12:
+    enabled: false
+    window: 12
+  drift:
+    enabled: false
+  seasonal_naive:
+    enabled: false
+  seasonal_naive_growth:
+    enabled: false
+    growth_window: 3
+  auto_ets:
+    enabled: false
+  auto_theta:
+    enabled: false
+  auto_arima:
+    enabled: false
+  prophet_default:
+    enabled: false
+    params: {}
+  prophet_yearly:
+    enabled: false
+    params:
+      yearly_seasonality: 3
+      seasonality_prior_scale: 1.0
+  catboost_logdiff:
+    enabled: false
+    kind: catboost
+    target: log_diff
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: RMSE
+  catboost_diff:
+    enabled: false
+    kind: catboost
+    target: diff
+    params:
+      iterations: 500
+      depth: 6
+      learning_rate: 0.05
+      loss_function: RMSE
+  ridge_logdiff:
+    enabled: false
+    kind: ridge
+    target: log_diff
+    params:
+      alpha: 1.0
+  ridge_diff:
+    enabled: false
+    kind: ridge
+    target: diff
+    params:
+      alpha: 1.0
+  catboost_diff_g1:
+    enabled: true
+    base: catboost_diff
+    features:
+    - geo
+  catboost_diff_g12:
+    enabled: false
+    base: catboost_diff
+    features:
+    - geo
+    - regional
+  catboost_diff_g123:
+    enabled: false
+    base: catboost_diff
+    features:
+    - geo
+    - regional
+    - population
+  catboost_diff_g1234:
+    enabled: false
+    base: catboost_diff
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  catboost_logdiff_g1:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+  catboost_logdiff_g12:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+    - regional
+  catboost_logdiff_g123:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+    - regional
+    - population
+  catboost_logdiff_g1234:
+    enabled: false
+    base: catboost_logdiff
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  catboost_diff_ds:
+    enabled: false
+    base: catboost_diff
+    deseason: true
+  catboost_diff_ds_g1:
+    enabled: false
+    base: catboost_diff_ds
+    features:
+    - geo
+  catboost_diff_ds_g12:
+    enabled: false
+    base: catboost_diff_ds
+    features:
+    - geo
+    - regional
+  catboost_diff_ds_g123:
+    enabled: true
+    base: catboost_diff_ds
+    features:
+    - geo
+    - regional
+    - population
+  catboost_diff_ds_g1234:
+    enabled: false
+    base: catboost_diff_ds
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  catboost_logdiff_ds:
+    enabled: false
+    base: catboost_logdiff
+    deseason: true
+  catboost_logdiff_ds_g1:
+    enabled: false
+    base: catboost_logdiff_ds
+    features:
+    - geo
+  catboost_logdiff_ds_g12:
+    enabled: false
+    base: catboost_logdiff_ds
+    features:
+    - geo
+    - regional
+  catboost_logdiff_ds_g123:
+    enabled: true
+    base: catboost_logdiff_ds
+    features:
+    - geo
+    - regional
+    - population
+  catboost_logdiff_ds_g1234:
+    enabled: false
+    base: catboost_logdiff_ds
+    features:
+    - geo
+    - regional
+    - population
+    - rosstat_q
+  chronos2:
+    enabled: false
+    kind: chronos
+    model_id: amazon/chronos-2
+  chronos2_nat:
+    enabled: false
+    base: chronos2
+    covariate: national
+  chronos2_cl:
+    enabled: false
+    base: chronos2
+    cross_learning: true
+    batch_size: 100
+  chronos2_nat_cl:
+    enabled: false
+    base: chronos2_nat
+    cross_learning: true
+    batch_size: 100
+  catboost_diff_ds_g123n:
+    enabled: false
+    base: catboost_diff_ds_g123
+    features:
+    - geo
+    - regional
+    - population
+    - news
+  catboost_logdiff_ds_g123n:
+    enabled: false
+    base: catboost_logdiff_ds_g123
+    features:
+    - geo
+    - regional
+    - population
+    - news
+  catboost_diff_ds_g123r:
+    enabled: true
+    base: catboost_diff_ds_g123
+    features:
+    - geo
+    - regional
+    - population
+    - calendar
+  catboost_logdiff_ds_g123r:
+    enabled: true
+    base: catboost_logdiff_ds_g123
+    features:
+    - geo
+    - regional
+    - population
+    - calendar
+  catboost_diff_g1r:
+    enabled: true
+    base: catboost_diff_g1
+    features:
+    - geo
+    - calendar
+n_jobs: -1
+output_dir: results/incomplete
