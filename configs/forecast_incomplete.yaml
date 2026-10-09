@@ -1,9 +1,9 @@
 # Эксперимент: все МО, включая неполные ряды (174 МО), и признак Рамадана (группа calendar, вариант *r).
 # Сгенерирован из configs/forecast.yaml: те же данные и протокол, only_complete: false, свой output_dir.
 # Запуск:
-#   .venv/bin/python -m src.run_forecast --config configs/forecast_incomplete.yaml
-#   .venv/bin/python -m src.evaluate --config configs/forecast_incomplete.yaml
-#   .venv/bin/python -m src.incomplete_eval
+#   .venv/bin/python -m src.evaluation.run_forecast --config configs/forecast_incomplete.yaml
+#   .venv/bin/python -m src.evaluation.evaluate --config configs/forecast_incomplete.yaml
+#   .venv/bin/python -m src.experiments.incomplete_eval
 seed: 42
 data:
   consumption: consumption.parquet

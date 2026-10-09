@@ -1,24 +1,24 @@
 # Конфигурация эксперимента: сравнение базовых моделей прогноза потребления в МО.
-# Запуск: .venv/bin/python -m src.run_forecast --config configs/forecast.yaml
+# Запуск: .venv/bin/python -m src.evaluation.run_forecast --config configs/forecast.yaml
 
 seed: 42
 
 data:
   consumption: consumption.parquet
   market_access: market_access.parquet
-  # Внешние данные (собираются .venv/bin/python -m src.external), нужны моделям с features
+  # Внешние данные (собираются .venv/bin/python -m src.data.external), нужны моделям с features
   external:
     static: data/external/territory_static.parquet
     quarterly: data/external/rosstat_quarterly.parquet
     connection: connection.parquet
     n_neighbors: 5                  # ближайшие МО по автодороге для признаков nbr_*
     rosstat_lag_months: 6           # квартал БДПМО считается опубликованным через 6 мес. после его конца
-    news: data/news/city_month.parquet   # всплески новостей по городу — центру МО (src.news_features)
-    region_monthly: data/external/region_monthly.parquet   # ИПЦ и зарплата по регионам (src.external)
+    news: data/news/city_month.parquet   # всплески новостей по городу — центру МО (src.data.news_features)
+    region_monthly: data/external/region_monthly.parquet   # ИПЦ и зарплата по регионам (src.data.external)
     macro_lag_months: {cpi: 1, wage: 3}
-    tourism: data/external/tourism.parquet   # ночёвки в КСР по МО (src.external --only tourism)
+    tourism: data/external/tourism.parquet   # ночёвки в КСР по МО (src.data.external --only tourism)
     tourism_year: 2022                       # годовые данные БДПМО за 2022 г. опубликованы до конца 2023 г.  # ИПЦ за месяц выходит через ~2 недели, зарплата — через ~2 мес.
-  # Национальный сезонный профиль для моделей с deseason (ряд — src.external, профиль — src.data.national_season).
+  # Национальный сезонный профиль для моделей с deseason (ряд — src.data.external, профиль — src.data.national_season).
   # Годы 2019–2022 — до начала панели, утечки нет ни в одном разбиении. Сопоставление категорий выбрано
   # по 2023 г. (он всегда в обучении): профиль, после вычитания которого медианный прирост МО ровнее всего.
   seasonal:
@@ -185,7 +185,7 @@ models:
   catboost_diff_rel:             {enabled: true, base: catboost_diff, features: [relative]}
   catboost_diff_g123_rel:        {enabled: true, base: catboost_diff_g123, features: [geo, regional, population, relative]}
 
-  # --- регуляризация основной модели (выбор — по H1, src.halves) ---
+  # --- регуляризация основной модели (выбор — по H1, src.experiments.halves) ---
   catboost_logdiff_dsp_g123_d4:   {enabled: true, base: catboost_logdiff_dsp_g123,
                                    params: {iterations: 500, depth: 4, learning_rate: 0.05, loss_function: RMSE}}
   catboost_logdiff_dsp_g123_l2:   {enabled: true, base: catboost_logdiff_dsp_g123,
@@ -225,7 +225,7 @@ models:
   chronos2_cl:     {enabled: false, base: chronos2, cross_learning: true, batch_size: 100}
   chronos2_nat_cl: {enabled: false, base: chronos2_nat, cross_learning: true, batch_size: 100}
 
-  # --- новостные признаки поверх лучших вариантов (оценка на событиях: src.news_eval) ---
+  # --- новостные признаки поверх лучших вариантов (оценка на событиях: src.experiments.news_eval) ---
   catboost_diff_ds_g123n:    {enabled: true, base: catboost_diff_ds_g123, features: [geo, regional, population, news]}
   catboost_logdiff_ds_g123n: {enabled: true, base: catboost_logdiff_ds_g123,
                               features: [geo, regional, population, news]}
@@ -250,7 +250,7 @@ models:
   # --- месяцы, которых нет в обучении (январь при T=12): сезонный прирост 0 вместо национального ---
   # Считались для Здоровья, Общепита, Транспорта (у Маркетплейсов национального профиля нет — и так 0).
   # Итог: к модели с профилем Здоровье −7…−42%, Общепит −18…−62%, Транспорт +11…+21% (меняется только старт T=12);
-  # к catboost_diff — Общепит h=1 −6% (8/12), Здоровье h≥3 +12…+30%. Выбор для 2025 г. — src.forecast_2025 --seen-only
+  # к catboost_diff — Общепит h=1 −6% (8/12), Здоровье h≥3 +12…+30%. Выбор для 2025 г. — src.forecast.forecast_2025 --seen-only
   catboost_logdiff_dsp_g123_nz: {enabled: false, base: catboost_logdiff_dsp_g123, season_unseen: zero}
   catboost_diff_dsp_g123_nz:    {enabled: false, base: catboost_diff_dsp_g123, season_unseen: zero}
 

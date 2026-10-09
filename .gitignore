@@ -10,9 +10,9 @@ catboost_info/
 # исходные данные СберИндекса скачиваются отдельно (см. README)
 *.parquet
 !results/**/*.parquet
-# внешние данные и новости собираются src.external, src.news_infini, src.news_features
-data/
-# прогнозы всех моделей пересчитываются src.run_forecast; в репозитории — только final
+# внешние данные и новости собираются src.data.external, src.data.news_infini, src.data.news_features
+/data/
+# прогнозы всех моделей пересчитываются src.evaluation.run_forecast; в репозитории — только final
 results/forecasts/*
 !results/forecasts/final/
 results/early/

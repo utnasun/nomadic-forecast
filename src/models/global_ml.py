@@ -8,15 +8,15 @@ strategy="recursive" (по умолчанию) — прогноз на 1 шаг,
   diff     — y_t − y_{t−1}: прирост в рублях.
 Признаки есть в обеих формах — логарифмической и абсолютной (рубли).
 
-Внешние признаки включаются списком features (данные — src.external, ctx.ext):
+Внешние признаки включаются списком features (данные — src.data.external, ctx.ext):
   geo        — справочник МО: регион, тип, статус, shape, координаты центра;
   regional   — медианный прирост по МО своего региона и средний по k ближайшим МО (по автодороге) за t−1;
   population — log численности населения и её прирост (2022 г.);
   rosstat_q  — прирост г/г квартальных показателей БДПМО (розница, общепит, зарплата, занятость),
                доступных к последнему известному месяцу с учётом лага публикации;
   news       — всплески числа статей о ЧС и об отключениях по городу — центру МО за t−1 и t−2
-               (src.news_features); есть только у МО с городом в словаре;
-  calendar   — Рамадан в месяцы t−1, t, t+1 × доля мусульман в регионе (src.calendar_features);
+               (src.data.news_features); есть только у МО с городом в словаре;
+  calendar   — Рамадан в месяцы t−1, t, t+1 × доля мусульман в регионе (src.data.calendar_features);
   relative   — МО относительно своего региона: прирост за t−1, рост г/г и уровень (log) минус медиана по региону;
                деревья плохо строят разность двух признаков сами;
   macro      — рост цен за 12 мес. в регионе (ИПЦ всего, продовольствие, непрод., услуги) и рост зарплаты г/г
@@ -65,7 +65,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from src.calendar_features import ramadan_features
+from src.data.calendar_features import ramadan_features
 from src.data import MACRO_OFFSET
 from src.models.base import Context
 
@@ -383,7 +383,7 @@ class GlobalML:
                 "market_access": ctx.market_access,
             }
         if set(self.features) & EXT_GROUPS and ctx.ext is None:
-            raise ValueError("Нужны внешние данные: .venv/bin/python -m src.external и data.external в конфиге")
+            raise ValueError("Нужны внешние данные: .venv/bin/python -m src.data.external и data.external в конфиге")
         st = ctx.ext.static if ctx.ext is not None else None
         if "geo" in self.features:
             s.update({c: st[c].values for c in GEO_CAT + ["lat", "lon"]})
@@ -409,7 +409,7 @@ class GlobalML:
             extra.update(rosstat_features(ctx.ext, min(t, T) - 1))
         if "news" in self.features:
             if ctx.ext.news is None:
-                raise ValueError("Нужны новостные признаки: .venv/bin/python -m src.news_features и data.external.news")
+                raise ValueError("Нужны новостные признаки: .venv/bin/python -m src.data.news_features и data.external.news")
             extra.update(news_features(ctx.ext, t, T))
         if "calendar" in self.features:
             extra.update(ramadan_features(ctx, ctx.ext.static["region"].values, t))
@@ -437,7 +437,7 @@ class GlobalML:
             extra.update(shift_size=size, shift_age=np.where(at >= 0, last - at, np.nan))
         if "macro" in self.features:
             if ctx.ext.macro is None:
-                raise ValueError("Нужны региональные ИПЦ и зарплата: .venv/bin/python -m src.external --only region_monthly")
+                raise ValueError("Нужны региональные ИПЦ и зарплата: .venv/bin/python -m src.data.external --only region_monthly")
             extra.update(macro_features(ctx.ext, t, T))
         return X.assign(**extra) if extra else X
 

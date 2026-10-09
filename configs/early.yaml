@@ -1,6 +1,6 @@
-# Прогнозы на 1 месяц с июля 2023 г. (обучение от 6 месяцев) — только для истории шоков (src.shocks_v2 --early).
+# Прогнозы на 1 месяц с июля 2023 г. (обучение от 6 месяцев) — только для истории шоков (src.shocks.detector --early).
 # Собран из configs/forecast.yaml: протокол min_train 6, горизонт 1, модели правила final.
-# Запуск: .venv/bin/python -m src.run_forecast --config configs/early.yaml
+# Запуск: .venv/bin/python -m src.evaluation.run_forecast --config configs/early.yaml
 seed: 42
 data:
   consumption: consumption.parquet
