@@ -77,21 +77,33 @@ MAE итоговой модели против Prophet, руб. на жител�
 
 Положите в корень репозитория файлы хакатона СберИндекса `consumption.parquet`, `market_access.parquet` и
 `connection.parquet` ([описание и скачивание](https://sberindex.ru/ru/research/data-sense-opisanie-nabora-dannikh-khakatona-sberindeksa-po-munitsipalnim-dannim)).
-Python 3.10, около 10 минут на 8 ядрах:
+Нужен Python 3.10.
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m src.data.external        # справочник МО, население, национальный ряд → data/external/
-.venv/bin/python -m src.evaluation.run_forecast --models naive prophet_default catboost_diff catboost_logdiff_dsp_g123
-.venv/bin/python -m src.evaluation.evaluate  # метрики → results/metrics_overall.csv
-.venv/bin/python -m src.forecast.final       # итоговый прогноз → results/forecasts/final/
-.venv/bin/python -m src.evaluation.run_forecast --config configs/early.yaml
-.venv/bin/python -m src.shocks.detector --early results/early   # шоки → results/shocks_v2/
-.venv/bin/python -m src.forecast.intervals
-.venv/bin/python -m src.forecast.forecast_2025   # прогноз на 2025 г. → results/forecast_2025/
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# справочник МО, население, национальный ряд → data/external/
+python -m src.data.external
+
+# прогнозы базовых моделей и итоговой модели, метрики → results/metrics_overall.csv
+python -m src.evaluation.run_forecast --models naive prophet_default catboost_diff catboost_logdiff_dsp_g123
+python -m src.evaluation.evaluate
+
+# итоговый прогноз → results/forecasts/final/
+python -m src.forecast.final
+
+# прогнозы на короткой истории, детектор шоков → results/shocks_v2/, интервалы
+python -m src.evaluation.run_forecast --config configs/early.yaml
+python -m src.shocks.detector --early results/early
+python -m src.forecast.intervals
+
+# прогноз на 2025 год → results/forecast_2025/
+python -m src.forecast.forecast_2025
 ```
 
-Все гиперпараметры — в [configs/forecast.yaml](configs/forecast.yaml). Другие сценарии:
+Все гиперпараметры лежат в [configs/forecast.yaml](configs/forecast.yaml). Другие сценарии (команды запускаются из активированного окружения):
 
 - все модели сравнения: `python -m src.evaluation.run_forecast` без `--models` (Prophet и ETS/Theta/ARIMA считаются
   по каждому МО — несколько часов), затем `src.evaluation.evaluate`;
