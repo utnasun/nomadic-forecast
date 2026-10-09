@@ -1,7 +1,7 @@
 """Прогноз против факта: страница с прогнозами на 1, 3, 6 и 12 месяцев у 5 лучших, 5 типичных и 5 худших МО.
 
 МО упорядочены по средней MAPE модели за четыре горизонта (протокол расширяющегося окна, тест — 2024 г.).
-.venv/bin/python -m src.viz.forecast_viz [--model final] → results/forecast_vs_fact.html
+.venv/bin/python -m src.viz.forecast_viz [--model final] → docs/forecast_vs_fact.html
 """
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ def build(model: str) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="final")
-    ap.add_argument("--out", default="results/forecast_vs_fact.html")
+    ap.add_argument("--out", default="docs/forecast_vs_fact.html")
     a = ap.parse_args()
     tpl = (Path(__file__).parent / "forecast_viz_template.html").read_text()
     html = tpl.replace("/*DATA*/null", json.dumps(build(a.model), ensure_ascii=False))

@@ -1,104 +1,68 @@
-<title>Прогноз против факта по МО</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Unbounded:wght@500;600&display=swap">
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Прогнозы на 2024 год рядом с фактом</title>
 <style>
 :root {
-  --bg: #f5f7f5; --surface: #ffffff; --surface-2: #eef2ef; --band: #f1f4f2;
-  --ink: #15201c; --ink-2: #4f5b57; --ink-3: #7b8682; --line: #dde3df; --grid: #e8ece9;
-  --accent: #0e6b62; --accent-soft: #d8ebe7;
-  --fact: #15201c; --fc: #2a78d6; --fc-alt: #eb6834;
-  --good: #1f7a3a; --good-bg: #e2f2e6; --bad: #b3261e; --bad-bg: #fbe6e4; --mid: #6b5a00; --mid-bg: #f6efcf;
-  --display: "Unbounded", "Golos Text", system-ui, sans-serif;
-  --body: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #111614; --surface: #181e1c; --surface-2: #1f2724; --band: #1c2321;
-    --ink: #e8eeeb; --ink-2: #aab5b1; --ink-3: #7f8a86; --line: #2b3431; --grid: #242c29;
-    --accent: #4fc2b4; --accent-soft: #19332f; --fact: #e8eeeb; --fc: #3987e5; --fc-alt: #d95926;
-    --good: #6fd08a; --good-bg: #173322; --bad: #f08a83; --bad-bg: #3a1c1a; --mid: #e3cc6b; --mid-bg: #33301a;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #111614; --surface: #181e1c; --surface-2: #1f2724; --band: #1c2321;
-  --ink: #e8eeeb; --ink-2: #aab5b1; --ink-3: #7f8a86; --line: #2b3431; --grid: #242c29;
-  --accent: #4fc2b4; --accent-soft: #19332f; --fact: #e8eeeb; --fc: #3987e5; --fc-alt: #d95926;
-  --good: #6fd08a; --good-bg: #173322; --bad: #f08a83; --bad-bg: #3a1c1a; --mid: #e3cc6b; --mid-bg: #33301a;
+  --ink: #1f2328; --ink-2: #59636e; --ink-3: #818b98; --line: #d1d9e0; --line-2: #eaeef2; --bg-2: #f6f8fa; --grid: #eaeef2;
+  --link: #0969da; --fact: #1f2328; --fc: #0969da; --band: #f3f5f7; --surface: #fff;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); margin: 0; }
-.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 28px; }
-h1 { font-family: var(--display); font-weight: 600; font-size: clamp(24px, 3.6vw, 34px); line-height: 1.15; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
-p { margin: 0; max-width: 72ch; }
-.eyebrow { font: 500 12px/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+body { margin: 0; background: #fff; color: var(--ink);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 32px 16px 56px; }
+h1 { font-size: 28px; line-height: 1.25; font-weight: 600; margin: 0 0 8px; }
+p { margin: 0 0 12px; max-width: 80ch; }
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
 .muted { color: var(--ink-2); }
-.small { font-size: 13px; }
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-header { display: grid; gap: 12px; }
-code { font: 13px var(--mono); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
-
-.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
-.seg { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
-.seg button { font: 500 14px var(--body); color: var(--ink-2); background: transparent; border: 0; border-radius: 7px; padding: 6px 12px; cursor: pointer; }
-.seg button:hover { color: var(--ink); }
-.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-.summary { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
-.summary .k { font: 500 12px var(--mono); color: var(--ink-3); letter-spacing: .04em; }
-.summary .v { font: 500 20px var(--mono); font-variant-numeric: tabular-nums; }
-.summary .small-v { font-size: 15px; color: var(--ink-2); }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); align-items: center; }
-.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
-.legend .sw-band { display: inline-block; width: 14px; height: 12px; background: var(--band); border: 1px solid var(--line); vertical-align: middle; margin-right: 6px; }
-
-.list { display: grid; gap: 14px; }
-.mo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 10px; display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; }
-.mo-info { display: grid; gap: 6px; align-content: start; }
-.mo-name { font-weight: 600; font-size: 16px; line-height: 1.3; }
-.mo-meta { font-size: 13px; color: var(--ink-2); line-height: 1.35; }
-.pill { justify-self: start; font: 500 11px var(--mono); letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
-.pill.good { color: var(--good); background: var(--good-bg); }
-.pill.bad { color: var(--bad); background: var(--bad-bg); }
-.pill.typical { color: var(--mid); background: var(--mid-bg); }
-.pill.avg { color: var(--accent); background: var(--accent-soft); }
-.mo.avg { border-color: var(--accent); }
-.errs { display: grid; grid-template-columns: auto auto; gap: 2px 12px; font-size: 13px; justify-content: start; margin-top: 4px; }
-.errs span:nth-child(odd) { color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
-.charts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.num { font-variant-numeric: tabular-nums; }
+code { font: 13.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--bg-2); padding: 1px 4px; border-radius: 4px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 16px 0; font-size: 14px; }
+.controls label { display: flex; gap: 8px; align-items: center; color: var(--ink-2); }
+select { font: inherit; font-size: 14px; color: var(--ink); padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-width: 100%; }
+.summary { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 14px; margin: 4px 0; }
+.summary .k { color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-2); align-items: center; margin: 8px 0 4px; }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
+.legend .sw-band { display: inline-block; width: 14px; height: 10px; background: var(--band); border: 1px solid var(--line); vertical-align: middle; margin-right: 6px; }
+.list { margin-top: 8px; }
+.mo { border-top: 1px solid var(--line-2); padding: 14px 0 10px; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; }
+.mo-info { display: grid; gap: 2px; align-content: start; }
+.mo-name { font-weight: 600; font-size: 15px; line-height: 1.35; }
+.mo-meta { font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+.pill { font-size: 13px; color: var(--ink-2); }
+.charts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .chart { position: relative; }
-.chart-h { font: 500 12px var(--mono); color: var(--ink-2); display: flex; justify-content: space-between; gap: 6px; }
+.chart-h { font-size: 12px; color: var(--ink-2); display: flex; justify-content: space-between; gap: 6px; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.chart svg text { font: 10px var(--mono); fill: var(--ink-3); }
-.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: 12px/1.4 var(--body); color: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,.12); white-space: nowrap; z-index: 5; }
-.tip .num { font-size: 12px; }
-.note { font-size: 13px; color: var(--ink-2); display: grid; gap: 6px; }
-
+.chart svg text { font-size: 10px; fill: var(--ink-3); }
+.tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12px; line-height: 1.4; color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,.08); white-space: nowrap; z-index: 5; }
+.note { font-size: 14px; color: var(--ink-2); margin-top: 24px; border-top: 1px solid var(--line-2); padding-top: 12px; }
 @media (max-width: 980px) {
-  .mo { grid-template-columns: 1fr; }
+  .mo { grid-template-columns: 1fr; gap: 8px; }
   .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .errs { grid-template-columns: repeat(4, auto auto); }
 }
 @media (max-width: 520px) {
   .charts { grid-template-columns: 1fr; }
-  .errs { grid-template-columns: auto auto; }
 }
 </style>
+</head>
+<body>
 
 <div class="wrap">
-  <header>
-    <div class="eyebrow">СберИндекс · безналичные расходы на жителя · модель <span id="model"></span></div>
-    <h1>Прогноз против факта: лучшие и худшие МО</h1>
-    <p class="muted">Чёрная линия — факт за 2023–2024 гг., синяя — прогноз, построенный в точке старта (кружок — последнее известное значение). Затенён 2024 г. — тест. На горизонте h прогноз делается каждые h месяцев на h месяцев вперёд: 12 прогнозов на месяц, 4 на квартал, 2 на полгода, один на год. МО упорядочены по средней ошибке (MAPE) за все четыре горизонта.</p>
-  </header>
+  <p><a href="index.html">← на главную</a></p>
+  <h1>Прогнозы на 2024 год рядом с фактом</h1>
+  <p class="muted">Модель <span id="model"></span>, протокол расширяющегося окна. Чёрная линия — факт за 2023–2024 гг.,
+    синяя — прогноз из точки старта (кружок — последнее известное значение), серым фоном отмечен 2024 г. На горизонте h
+    прогноз строится каждые h месяцев на h месяцев вперёд: 12 прогнозов на месяц, 4 на квартал, 2 на полгода, один на
+    год. МО упорядочены по средней ошибке (MAPE) за четыре горизонта.</p>
 
   <div class="controls">
-    <div class="seg" id="cats" role="group" aria-label="Категория"></div>
-    <div class="seg" id="groups" role="group" aria-label="Группа МО"></div>
+    <label>Категория <select id="cats"></select></label>
+    <label>МО <select id="groups"></select></label>
   </div>
 
   <div class="summary" id="summary"></div>
@@ -106,15 +70,15 @@ code { font: 13px var(--mono); background: var(--surface-2); padding: 1px 5px; b
   <div class="legend">
     <span><i style="border-color: var(--fact)"></i>факт</span>
     <span><i style="border-color: var(--fc)"></i>прогноз</span>
-    <span><span class="sw-band"></span>2024 г., тест</span>
-    <span>Наведите на график: месяц, факт, прогноз и ошибка</span>
+    <span><span class="sw-band"></span>2024 г.</span>
+    <span>при наведении — месяц, факт, прогноз и ошибка</span>
   </div>
 
   <div class="list" id="list"></div>
 
   <div class="note">
     <p>«Средний МО» — среднее по всем МО факта и прогноза: на нём видно, где модель промахивается сразу по всей стране (январь, февраль и апрель 2024 г.). Его MAPE — ошибка среднего, а не средняя ошибка МО.</p>
-    <p>Вторая строка сверху — разложение ошибки: на сколько упала бы MAE, если бы был заранее известен общий для всех МО сдвиг месяца (медиана ошибки по МО), а затем ещё и сдвиг своего региона. Остальное — ошибка самого МО; от месяца к месяцу она не сохраняется (корреляция ≈ 0).</p>
+    <p>Вторая строка над графиками — разложение ошибки: на сколько упала бы MAE, если бы был заранее известен общий для всех МО сдвиг месяца (медиана ошибки по МО), а затем ещё и сдвиг своего региона. Остальное — ошибка самого МО; от месяца к месяцу она не сохраняется (корреляция ≈ 0).</p>
     <p>MAPE — средняя абсолютная ошибка в процентах факта по всем прогнозам горизонта в 2024 г. Медиана — по всем 2016 МО с полными рядами. Шкала по вертикали общая для четырёх графиков одного МО и начинается не с нуля.</p>
     <p>Модель <code>final</code>: для «Всех категорий» и Продовольствия — CatBoost с сезонным профилем по панели (<code>catboost_logdiff_dsp_g123</code>), для остальных категорий — <code>catboost_diff</code>.</p>
   </div>
@@ -135,14 +99,10 @@ let state = { cat: CATS[0], group: "bad" };
 try { const s = JSON.parse(localStorage.getItem("fvf-state") || "null"); if (s && DATA.cats[s.cat]) state = s; } catch (e) {}
 document.getElementById("model").textContent = DATA.model;
 
-function buttons(el, items, key) {
-  el.innerHTML = "";
-  for (const [val, label] of items) {
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = label; b.setAttribute("aria-pressed", state[key] === val);
-    b.addEventListener("click", () => { state[key] = val; try { localStorage.setItem("fvf-state", JSON.stringify(state)); } catch (e) {} render(); });
-    el.appendChild(b);
-  }
+function options(el, items, key) {
+  el.innerHTML = items.map(([val, label]) => `<option value="${val}">${label}</option>`).join("");
+  el.value = state[key];
+  el.onchange = () => { state[key] = el.value; try { localStorage.setItem("fvf-state", JSON.stringify(state)); } catch (e) {} render(); };
 }
 
 const W = 280, H = 150, M = { l: 44, r: 6, t: 8, b: 20 };
@@ -211,12 +171,12 @@ function chart(mo, h, yr) {
 }
 
 function render() {
-  buttons(document.getElementById("cats"), CATS.map(c => [c, c]), "cat");
-  buttons(document.getElementById("groups"), GROUPS, "group");
+  options(document.getElementById("cats"), CATS.map(c => [c, c]), "cat");
+  options(document.getElementById("groups"), GROUPS, "group");
   const sm = DATA.summary[state.cat];
-  document.getElementById("summary").innerHTML = `<span class="k">МЕДИАНА MAPE ПО ${fmt.format(sm.n)} МО</span>` +
+  document.getElementById("summary").innerHTML = `<span class="k">медиана MAPE по ${fmt.format(sm.n)} МО:</span>` +
     HS.map(h => `<span><span class="k">h=${h}</span> <span class="v">${sm.median_mape[h].toFixed(1).replace(".", ",")}%</span></span>`).join("");
-  document.getElementById("oracle").innerHTML = `<span class="k">ЕСЛИ БЫ ЗНАЛИ ОБЩИЙ СДВИГ МЕСЯЦА: СТРАНА / + РЕГИОН</span>` +
+  document.getElementById("oracle").innerHTML = `<span class="k">MAE ниже, если знать общий сдвиг месяца по стране / по стране и региону:</span>` +
     HS.map(h => `<span><span class="k">h=${h}</span> <span class="v small-v">${sm.oracle[h].map(v => "−" + Math.abs(v) + "%").join(" / ")}</span></span>`).join("");
   const list = document.getElementById("list"); list.innerHTML = "";
   for (const mo of DATA.cats[state.cat].filter(m => m.kind === state.group || m.kind === "avg")) {
@@ -225,7 +185,7 @@ function render() {
     let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.06 || hi * 0.05; lo -= pad; hi += pad;
     const ticks = niceTicks(lo, hi, 3);
     const card = document.createElement("article"); card.className = "mo" + (mo.kind === "avg" ? " avg" : "");
-    card.innerHTML = `<div class="mo-info"><span class="pill ${mo.kind}">${KIND[mo.kind]}</span>
+    card.innerHTML = `<div class="mo-info"><span class="pill">${KIND[mo.kind]}</span>
       <div class="mo-name">${mo.name}</div><div class="mo-meta">${mo.region}<br>${mo.type}</div></div>`;
     const charts = document.createElement("div"); charts.className = "charts";
     for (const h of HS) charts.appendChild(chart(mo, h, [lo, hi, ticks]));
@@ -234,3 +194,5 @@ function render() {
 }
 render();
 </script>
+</body>
+</html>
